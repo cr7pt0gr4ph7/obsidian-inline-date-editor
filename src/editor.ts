@@ -11,7 +11,6 @@ import {
 import { syntaxTree } from "@codemirror/language";
 import { InlineDateEditorSettings } from "settings";
 import { extractInlineDates, InlineDate } from "parser";
-import { selectionAndRangeOverlap } from "utils";
 
 class InlineDateValue extends RangeValue {
     constructor(public date: InlineDate) {
@@ -77,7 +76,7 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
             }
 
             buildDecorations(view: EditorView): DecorationSet {
-                // Disable in the source mode
+                // Only activate in live preview and not in source mode
                 if (!view.state.field(editorLivePreviewField)) return Decoration.none;
 
                 const file = view.state.field(editorInfoField).file;
@@ -85,25 +84,21 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
 
                 const info = view.state.field(inlineDatesField);
                 const builder = new RangeSetBuilder<Decoration>();
-                const selection = view.state.selection;
 
                 for (const { from, to } of view.visibleRanges) {
-                    info.between(from, to, (start, end, { date }) => {
-                        // If the inline field is not overlapping with the cursor, we replace it with a widget.
-                        if (!selectionAndRangeOverlap(selection, start, end)) {
-                            builder.add(
-                                start,
-                                end,
-                                Decoration.mark({ class: "inline-date-decoration" }),
-                            );
-                        }
+                    info.between(from, to, (start, end, { date: _date }) => {
+                        builder.add(
+                            start,
+                            end,
+                            Decoration.mark({ class: "inline-date-decoration" }),
+                        );
                     });
                 }
                 return builder.finish();
             }
 
             update(update: ViewUpdate) {
-                // only activate in LP and not source mode
+                // Only activate in live preview and not in source mode
                 if (!update.state.field(editorLivePreviewField)) {
                     this.decorations = Decoration.none;
                     return;
@@ -128,18 +123,11 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                     return;
                 }
 
-                const inlineFields = view.state.field(inlineDatesField);
-                const selection = view.state.selection;
+                const inlineDates = view.state.field(inlineDatesField);
 
                 for (const { from, to } of view.visibleRanges) {
-                    inlineFields.between(from, to, (start, end, { date }) => {
-                        const overlap = selectionAndRangeOverlap(selection, start, end);
-                        if (overlap) {
-                            this.removeDecorationAt(start, end);
-                            return;
-                        } else {
-                            this.addDecorationAt(start, end, date, file, view);
-                        }
+                    inlineDates.between(from, to, (start, end, { date }) => {
+                        this.addDecorationAt(start, end, date, file, view);
                     });
                 }
             }
@@ -156,9 +144,7 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
 
             addDecorationAt(start: number, end: number, date: InlineDate, file: TFile, view: EditorView) {
                 let exists = false;
-                this.decorations.between(start, end, () => {
-                    exists = true;
-                });
+                this.decorations.between(start, end, () => { exists = true; });
                 if (!exists) {
                     this.decorations = this.decorations.update({
                         add: [

@@ -1,18 +1,18 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import InlineDateEditorPlugin from "./main";
 
-export interface MyPluginSettings {
+export interface InlineDateEditorSettings {
 	mySetting: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: InlineDateEditorSettings = {
 	mySetting: 'default'
 }
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class InlineDateEditorSettingTab extends PluginSettingTab {
+	plugin: InlineDateEditorPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: InlineDateEditorPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}

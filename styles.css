@@ -5,3 +5,10 @@
     border: 0 !important;
     visibility: collapse !important;
 }
+
+.inline-date-decoration {
+    text-decoration-line: underline;
+    text-decoration-color: var(--text-faint);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}

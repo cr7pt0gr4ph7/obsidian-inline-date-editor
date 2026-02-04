@@ -7,7 +7,6 @@ import {
     PluginValue,
     ViewPlugin,
     ViewUpdate,
-    WidgetType,
 } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { InlineDateEditorSettings } from "settings";
@@ -95,16 +94,7 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                             builder.add(
                                 start,
                                 end,
-                                Decoration.replace({
-                                    widget: new InlineDateWidget(
-                                        app,
-                                        date,
-                                        file.path,
-                                        this.component,
-                                        settings,
-                                        view
-                                    ),
-                                })
+                                Decoration.mark({ class: "inline-date-decoration" }),
                             );
                         }
                     });
@@ -175,16 +165,7 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                             {
                                 from: start,
                                 to: end,
-                                value: Decoration.replace({
-                                    widget: new InlineDateWidget(
-                                        app,
-                                        date,
-                                        file.path,
-                                        this.component,
-                                        settings,
-                                        view
-                                    ),
-                                }),
+                                value: Decoration.mark({ class: "inline-date-decoration" }),
                             },
                         ],
                     });
@@ -195,54 +176,6 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
             decorations: instance => instance.decorations,
         }
     );
-
-/** A widget which inline fields are replaced with. */
-class InlineDateWidget extends WidgetType {
-    constructor(
-        public app: App,
-        public date: InlineDate,
-        public sourcePath: string,
-        public component: Component,
-        public settings: InlineDateEditorSettings,
-        public view: EditorView
-    ) {
-        super();
-    }
-
-    eq(other: InlineDateWidget): boolean {
-        return this.date.value == other.date.value;
-    }
-
-    toDOM() {
-        // A large part of this method was taken from replaceInlineFields() in src/ui/views/inline-field.tsx.
-        // It will be better to extract the common part as a function...
-
-        // eslint-disable-next-line no-undef
-        const container = createSpan({
-            cls: ["dataview", "inline-date-editor"],
-        });
-        container.appendText(this.date.value);
-
-        container.addEventListener("click", event => {
-            // eslint-disable-next-line no-console
-            console.log("Inline date clicked");
-            if (event instanceof MouseEvent) {
-                // const rect = value.getBoundingClientRect();
-                // const relativePos = (event.x - rect.x) / rect.width;
-                // const startPos = this.view.posAtCoords(renderContainer.getBoundingClientRect(), false);
-                // const clickedPos = startPos;
-                // // const clickedPos = Math.round(
-                // //     startPos +
-                // //         (this.field.startValue - this.field.start) +
-                // //         (this.field.end - this.field.startValue) * relativePos
-                // // );
-                // this.view.dispatch({ selection: { anchor: clickedPos } });
-            }
-        });
-
-        return container;
-    }
-}
 
 /**
  * A state effect that represents the workspace's layout change.

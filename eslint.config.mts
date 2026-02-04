@@ -20,6 +20,13 @@ export default tseslint.config(
 				extraFileExtensions: ['.json']
 			},
 		},
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-unsafe-call': 'off',
+			'@typescript-eslint/no-unsafe-member-access': 'off',
+			'no-undef': 'off',
+			'no-console':  'off',
+		},
 	},
 	...obsidianmd.configs.recommended,
 	globalIgnores([

@@ -8,7 +8,11 @@
 
 .inline-date-decoration {
     text-decoration-line: underline;
-    text-decoration-color: var(--text-faint);
-    text-decoration-thickness: 1px;
+    text-decoration-color: var(--color-base-20);
+    text-decoration-thickness: 2px;
     text-underline-offset: 2px;
+}
+
+.inline-date-decoration:hover {
+    text-decoration-color: var(--color-base-40);
 }

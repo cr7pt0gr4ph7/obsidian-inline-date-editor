@@ -1,11 +1,16 @@
-import { App, Editor, EditorSuggest, MarkdownView, Modal, Notice, Plugin } from 'obsidian';
-import { DEFAULT_SETTINGS, InlineDateEditorSettings as InlineDateEditorSettings, InlineDateEditorSettingTab } from "./settings";
 import moment from 'moment';
+import { Editor, MarkdownView, Plugin } from 'obsidian';
+import { inlineDatesField, replaceInlineDatesInLivePreview, workspaceLayoutChangeEffect } from './editor';
+import { DEFAULT_SETTINGS, InlineDateEditorSettings, InlineDateEditorSettingTab } from "./settings";
+import { Extension } from '@codemirror/state';
 
 // Remember to rename these classes and interfaces!
 
 export default class InlineDateEditorPlugin extends Plugin {
 	settings: InlineDateEditorSettings;
+
+	/** CodeMirror 6 extensions that this plugin installs. Tracked via array to allow for dynamic updates. */
+	private cmExtension: Extension[];
 
 	async onload() {
 		await this.loadSettings();
@@ -38,6 +43,25 @@ export default class InlineDateEditorPlugin extends Plugin {
 				picker.showPicker();
 			},
 		});
+
+		// Editor extensions
+		this.cmExtension = [];
+		this.registerEditorExtension(this.cmExtension);
+		this.updateEditorExtensions();
+
+
+		// Mainly intended to detect when the user switches between live preview and source mode.
+		this.registerEvent(
+			this.app.workspace.on("layout-change", () => {
+				this.app.workspace.iterateAllLeaves(leaf => {
+					if (leaf.view instanceof MarkdownView && (leaf.view.editor as any).cm) {
+						(leaf.view.editor as any).cm.dispatch({
+							effects: workspaceLayoutChangeEffect.of(null),
+						});
+					}
+				});
+			})
+		);
 	}
 
 	onunload() {
@@ -53,5 +77,13 @@ export default class InlineDateEditorPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	public updateEditorExtensions() {
+		// Don't create a new array, keep the same reference
+		this.cmExtension.length = 0;
+		// Editor extension for rendering inline dates in live preview
+		this.cmExtension.push(inlineDatesField, replaceInlineDatesInLivePreview(this.app, this.settings));
+		this.app.workspace.updateOptions();
 	}
 }

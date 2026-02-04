@@ -7,6 +7,7 @@ import {
     PluginValue,
     ViewPlugin,
     ViewUpdate,
+    WidgetType,
 } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { InlineDateEditorSettings } from "settings";
@@ -90,11 +91,34 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                         builder.add(
                             start,
                             end,
-                            Decoration.mark({ class: "inline-date-decoration" }),
+                            Decoration.mark({ class: "inline-date-decoration" })
                         );
                     });
                 }
-                return builder.finish();
+                let result = builder.finish();
+
+                const editorAt = view.state.field(inlineDateEditorAtField);
+                if (editorAt !== null) {
+                    result = result.update({
+                        add: [
+                            {
+                                from: editorAt,
+                                to: editorAt,
+                                value: Decoration.widget({
+                                    widget: new InlineDateEditorWidget(
+                                        view.state.selection.main.from,
+                                        view.state.selection.main.to,
+                                        {
+                                            value: "",
+                                            start: editorAt,
+                                            end: editorAt,
+                                        }, view),
+                                }),
+                            },
+                        ],
+                    });
+                }
+                return result;
             }
 
             update(update: ViewUpdate) {
@@ -130,22 +154,35 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                         this.addDecorationAt(start, end, date, file, view);
                     });
                 }
-            }
 
-            removeDecorationAt(start: number, end: number) {
-                this.decorations.between(start, end, (from, to) => {
+                const editorAt = view.state.field(inlineDateEditorAtField);
+                if (editorAt !== null) {
                     this.decorations = this.decorations.update({
-                        filterFrom: from,
-                        filterTo: to,
-                        filter: () => false,
+                        add: [
+                            {
+                                from: editorAt,
+                                to: editorAt,
+                                value: Decoration.widget({
+                                    widget: new InlineDateEditorWidget(
+                                        view.state.selection.main.from,
+                                        view.state.selection.main.to,
+                                        {
+                                            value: "",
+                                            start: editorAt,
+                                            end: editorAt,
+                                        }, view),
+                                }),
+                            },
+                        ],
                     });
-                });
+                }
             }
 
             addDecorationAt(start: number, end: number, date: InlineDate, file: TFile, view: EditorView) {
                 let exists = false;
                 this.decorations.between(start, end, () => { exists = true; });
                 if (!exists) {
+                    console.log(`Adding decoration for date ${date.value} at ${start}-${end} in file ${file.path}`);
                     this.decorations = this.decorations.update({
                         add: [
                             {
@@ -157,6 +194,10 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
                     });
                 }
             }
+
+            // addInlineDateEditorDecorationAt(start: number, end: number, date: InlineDate, view: EditorView) {
+            //     throw new Error("Method not implemented.");
+            // }
         },
         {
             decorations: instance => instance.decorations,
@@ -168,3 +209,79 @@ export const replaceInlineDatesInLivePreview = (app: App, settings: InlineDateEd
  * Mainly intended to detect when the user switches between live preview and source mode.
  */
 export const workspaceLayoutChangeEffect = StateEffect.define<null>();
+
+export const openInlineDateEditorAtEffect = StateEffect.define<number>();
+export const hideInlineDateEditorEffect = StateEffect.define<null>();
+
+export const inlineDateEditorAtField = StateField.define<number | null>({
+    create() { return null; },
+    update(oldState, transaction) {
+        let newState = oldState;
+        for (let effect of transaction.effects) {
+            if (effect.is(openInlineDateEditorAtEffect)) {
+                newState = effect.value;
+            } else if (effect.is(hideInlineDateEditorEffect)) {
+                newState = null;
+            }
+        }
+        return newState;
+    },
+});
+
+class InlineDateEditorWidget extends WidgetType {
+    picker?: HTMLInputElement;
+
+    constructor(
+        public from: number,
+        public to: number,
+        public date: InlineDate,
+        public view: EditorView,
+    ) {
+        super();
+        this.picker = undefined;
+    }
+
+    eq(other: InlineDateEditorWidget): boolean {
+        return this.date.value == other.date.value;
+    }
+
+    toDOM(): HTMLElement {
+        // const span = document.createElement("span");
+        // span.classList.add("inline-date-widget");
+        // span.textContent = this.date.value;
+        // return span;
+        const picker = document.createElement("input");
+        picker.type = "date";
+        picker.classList.add("inline-date-editor--stub-input");
+        picker.value = this.date.value;
+        picker.addEventListener("change", () => {
+            this.view.dispatch({
+                changes: { from: this.from, to: this.to, insert: picker.value },
+                effects: hideInlineDateEditorEffect.of(null),
+            });
+        });
+
+        // HACK: Show the picker after it has been added to the DOM.
+        //       CodeMirror does not seem to provide a callback to detect
+        //       when the element has been inserted into the DOM, so
+        //       we resort to the hacky solution below.
+        const tryShowPicker = (i: number) => {
+            if (picker.parentNode) {
+                picker.showPicker();
+            } else if (i < 10) {
+                setTimeout(() => tryShowPicker(i + 1), 0);
+            }
+        };
+        this.picker = picker;
+        tryShowPicker(0);
+        return picker;
+    }
+
+    showPicker() {
+        this.picker?.showPicker();
+    }
+
+    destroy(dom: HTMLElement): void {
+        this.picker = undefined;
+    }
+}

@@ -1,8 +1,8 @@
-import moment from 'moment';
 import { Editor, MarkdownView, Plugin } from 'obsidian';
-import { inlineDatesField, replaceInlineDatesInLivePreview, workspaceLayoutChangeEffect } from './editor';
+import { inlineDateEditorAtField, inlineDatesField, openInlineDateEditorAtEffect, replaceInlineDatesInLivePreview, workspaceLayoutChangeEffect } from './editor';
 import { DEFAULT_SETTINGS, InlineDateEditorSettings, InlineDateEditorSettingTab } from "./settings";
 import { Extension } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 
 // Remember to rename these classes and interfaces!
 
@@ -21,26 +21,13 @@ export default class InlineDateEditorPlugin extends Plugin {
 			id: 'edit-date',
 			name: 'Edit or insert date',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				const maybeADate = editor.getSelection();
-				let parsedDate: string | null = null;
-				try {
-					if (maybeADate) {
-						parsedDate = moment(maybeADate, "YYYY-MM-DD", true).format("YYYY-MM-DD");
-					}
-				} catch {
-					// Ignored
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+				const cm = (view.editor as any).cm as EditorView;
+				if (cm) {
+					cm.dispatch({
+						effects: openInlineDateEditorAtEffect.of(cm.state.selection.main.from),
+					});
 				}
-
-				const picker = document.createElement("input");
-				picker.type = "date";
-				picker.classList.add("inline-date-editor--stub-input");
-				picker.value = parsedDate ?? "";
-				picker.addEventListener("change", () => {
-					editor.replaceSelection(picker.value);
-					picker.remove();
-				});
-				document.body.appendChild(picker);
-				picker.showPicker();
 			},
 		});
 
@@ -54,7 +41,9 @@ export default class InlineDateEditorPlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("layout-change", () => {
 				this.app.workspace.iterateAllLeaves(leaf => {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
 					if (leaf.view instanceof MarkdownView && (leaf.view.editor as any).cm) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
 						(leaf.view.editor as any).cm.dispatch({
 							effects: workspaceLayoutChangeEffect.of(null),
 						});
@@ -83,7 +72,7 @@ export default class InlineDateEditorPlugin extends Plugin {
 		// Don't create a new array, keep the same reference
 		this.cmExtension.length = 0;
 		// Editor extension for rendering inline dates in live preview
-		this.cmExtension.push(inlineDatesField, replaceInlineDatesInLivePreview(this.app, this.settings));
+		this.cmExtension.push(inlineDatesField, inlineDateEditorAtField, replaceInlineDatesInLivePreview(this.app, this.settings));
 		this.app.workspace.updateOptions();
 	}
 }
